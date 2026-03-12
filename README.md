@@ -1,16 +1,37 @@
-# arvya_ambience_app
+# ArvyaX - Calm Ambience App
 
-A new Flutter project.
+A premium meditation and focus app with ambient sounds.
 
-## Getting Started
+## 📱 Features
+- **6 Ambiences** - Forest, Ocean, Night Sky, Mountain Stream, Rain Library, Desert Night
+- **Search & Filter** - Find ambiences by name or tag (Focus/Calm/Sleep/Reset)
+- **Session Player** - Timer, play/pause, seek bar, breathing animation
+- **Mini Player** - Control playback from any screen
+- **Journal** - Reflect on sessions with mood tracking
+- **History** - View all past reflections
 
-This project is a starting point for a Flutter application.
+## 🏗️ Architecture
+- **State Management**: BLoC pattern
+- **Local Storage**: Hive for journal entries
+- **Dependency Injection**: Get_it
 
-A few resources to get you started if this is your first Flutter project:
+## 📦 Packages Used
+- flutter_bloc - State management
+- hive_flutter - Local database
+- equatable - State comparison
+- get_it - Dependency injection
+- uuid - Generate unique IDs
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+## 🚀 How to Run
+bash
+# Clone the repository
+git clone https://github.com/BALA-DINISHA/arvya-ambience-app.git
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+# Go to project folder
+cd arvya-ambience-app
+
+# Get dependencies
+flutter pub get
+
+# Run the app
+flutter run
