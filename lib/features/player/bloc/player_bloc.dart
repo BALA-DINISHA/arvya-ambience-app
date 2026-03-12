@@ -1,17 +1,25 @@
-import 'dart:async';
 import 'package:arvya_ambience_app/features/player/bloc/player_event.dart';
 import 'package:arvya_ambience_app/features/player/bloc/player_states.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:equatable/equatable.dart';
 import '../../../data/models/ambience.dart';
 
-
 class PlayerBloc extends Bloc<PlayerEvent, PlayerBlocState> {
-  Timer? _timer;
-  Ambience? _lastActiveAmbience;
+
   final AudioPlayer _audioPlayer = AudioPlayer();
+  Ambience? _lastActiveAmbience;
+
   PlayerBloc() : super(PlayerInitial()) {
+
+    _audioPlayer.onPositionChanged.listen((position) {
+      add(UpdateProgress(position: position));
+    });
+
+    /// Detect when audio finishes
+    _audioPlayer.onPlayerComplete.listen((event) {
+      add(const EndSession());
+    });
+
     on<StartSession>(_onStartSession);
     on<PauseSession>(_onPauseSession);
     on<ResumeSession>(_onResumeSession);
@@ -19,18 +27,21 @@ class PlayerBloc extends Bloc<PlayerEvent, PlayerBlocState> {
     on<EndSession>(_onEndSession);
     on<UpdateProgress>(_onUpdateProgress);
   }
-  Future<void> _onStartSession(StartSession event, Emitter<PlayerBlocState> emit) async {
-    _timer?.cancel();
+
+  /// START SESSION
+  Future<void> _onStartSession(
+      StartSession event,
+      Emitter<PlayerBlocState> emit,
+      ) async {
+
     _lastActiveAmbience = event.ambience;
 
     emit(PlayerLoading());
 
-    await Future.delayed(const Duration(milliseconds: 300));
-
     try {
 
       await _audioPlayer.play(
-          AssetSource("audio/${event.ambience.audioAsset}")
+        AssetSource("audio/${event.ambience.audioAsset}"),
       );
 
       emit(PlayerActive(
@@ -40,83 +51,87 @@ class PlayerBloc extends Bloc<PlayerEvent, PlayerBlocState> {
         totalDuration: Duration(seconds: event.ambience.duration),
       ));
 
-      _startTimer();
-
     } catch (e) {
-      emit(PlayerError("Audio failed to play"));
+      emit(const PlayerError("Audio failed to play"));
     }
   }
-  void _onPauseSession(PauseSession event, Emitter<PlayerBlocState> emit) async {
-    _timer?.cancel();
+
+  /// PAUSE
+  Future<void> _onPauseSession(
+      PauseSession event,
+      Emitter<PlayerBlocState> emit,
+      ) async {
 
     await _audioPlayer.pause();
 
     if (state is PlayerActive) {
       final currentState = state as PlayerActive;
+
       emit(currentState.copyWith(isPlaying: false));
     }
   }
 
-  void _onResumeSession(ResumeSession event, Emitter<PlayerBlocState> emit) async {
+  /// RESUME
+  Future<void> _onResumeSession(
+      ResumeSession event,
+      Emitter<PlayerBlocState> emit,
+      ) async {
+
+    await _audioPlayer.resume();
 
     if (state is PlayerActive) {
       final currentState = state as PlayerActive;
-
-      await _audioPlayer.resume();
 
       emit(currentState.copyWith(isPlaying: true));
-      _startTimer();
     }
   }
-  void _onSeekSession(SeekSession event, Emitter<PlayerBlocState> emit) {
-    print('⏩ SeekSession event received: ${event.position}');
+
+  /// SEEK
+  Future<void> _onSeekSession(
+      SeekSession event,
+      Emitter<PlayerBlocState> emit,
+      ) async {
 
     if (state is PlayerActive) {
+
       final currentState = state as PlayerActive;
-      if (event.position <= currentState.totalDuration) {
-        emit(currentState.copyWith(position: event.position));
-        print('✅ Emitted seeked state');
-      }
+
+      await _audioPlayer.seek(event.position);
+
+      emit(currentState.copyWith(position: event.position));
     }
   }
 
-  void _onEndSession(EndSession event, Emitter<PlayerBlocState> emit) async {
-    _timer?.cancel();
+  /// END SESSION
+  Future<void> _onEndSession(
+      EndSession event,
+      Emitter<PlayerBlocState> emit,
+      ) async {
 
     await _audioPlayer.stop();
 
     emit(PlayerEnded(lastAmbience: _lastActiveAmbience));
   }
-  void _onUpdateProgress(UpdateProgress event, Emitter<PlayerBlocState> emit) {
-    if (state is PlayerActive) {
+
+  /// UPDATE PROGRESS
+  void _onUpdateProgress(
+      UpdateProgress event,
+      Emitter<PlayerBlocState> emit,
+      ) {
+
+    if (state is PlayerActive && event.position != null) {
+
       final currentState = state as PlayerActive;
 
-      if (currentState.isPlaying) {
-        final newPosition = currentState.position + const Duration(seconds: 1);
-
-        if (newPosition >= currentState.totalDuration) {
-          print('⏰ Session completed - total duration reached');
-          _timer?.cancel();
-          add(const EndSession());
-        } else {
-          emit(currentState.copyWith(position: newPosition));
-        }
-      }
+      emit(currentState.copyWith(
+        position: event.position!,
+      ));
     }
-  }
-
-  void _startTimer() {
-    _timer?.cancel();
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      add(const UpdateProgress());
-    });
-    print('⏱️ Timer started');
   }
 
   @override
   Future<void> close() {
-    print('🔚 Closing PlayerBloc');
-    _timer?.cancel();
+    _audioPlayer.dispose();
     return super.close();
   }
 }
